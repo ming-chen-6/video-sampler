@@ -3,7 +3,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from .video_utils import load_video, get_video_info
-from .export import save_frame
+from .export import save_frame, _frame_label
 
 
 def _ffmpeg_available():
@@ -42,7 +42,7 @@ def _sample_cv2(video_path, output_folder, mode, interval=None, points=None, res
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
         ret, frame = cap.read()
         if ret:
-            path = save_frame(frame, output_folder, idx, resize)
+            path = save_frame(frame, output_folder, idx, resize, frame_num=frame_num, fps=fps, mode=mode)
             saved_paths.append(path)
         # Progress
         print(f"\rProcessing: {idx + 1}/{total}", end="", flush=True)
@@ -100,8 +100,19 @@ def _sample_ffmpeg(video_path, output_folder, mode, interval=None, points=None, 
     subprocess.run(cmd, capture_output=True, check=True)
     print(" done")
 
-    # Return list of saved files
-    return sorted(Path(output_folder).glob("frame_*.png"))
+    # Rename files to include time/frame labels
+    target_frames = _get_target_frames(mode, interval, points, fps, frame_count)
+    saved = sorted(Path(output_folder).glob("frame_*.png"))
+    renamed = []
+    for idx, path in enumerate(saved):
+        if idx < len(target_frames):
+            label = _frame_label(target_frames[idx], fps, mode)
+            new_name = path.parent / f"frame_{idx:06d}_{label}.png"
+            path.rename(new_name)
+            renamed.append(new_name)
+        else:
+            renamed.append(path)
+    return renamed
 
 
 def _get_target_frames(mode, interval, points, fps, frame_count):

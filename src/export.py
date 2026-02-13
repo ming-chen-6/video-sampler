@@ -20,9 +20,24 @@ def resize_frame(frame, resize):
     return cv2.resize(frame, resize)
 
 
-def save_frame(frame, folder, index, resize=None):
-    """Saves frame as PNG with zero-padded name."""
+def _frame_label(frame_num, fps, mode):
+    """Generate a label like '1m42s' (seconds mode) or '1424f' (frames mode)."""
+    if mode == "seconds":
+        total_sec = frame_num / fps
+        minutes = int(total_sec // 60)
+        seconds = int(total_sec % 60)
+        return f"{minutes}m{seconds:02d}s"
+    else:
+        return f"{frame_num}f"
+
+
+def save_frame(frame, folder, index, resize=None, frame_num=None, fps=None, mode=None):
+    """Saves frame as PNG. Includes time/frame label in name when info is provided."""
     frame = resize_frame(frame, resize)
-    filename = folder / f"frame_{index:06d}.png"
+    if frame_num is not None and fps is not None and mode is not None:
+        label = _frame_label(frame_num, fps, mode)
+        filename = folder / f"frame_{index:06d}_{label}.png"
+    else:
+        filename = folder / f"frame_{index:06d}.png"
     cv2.imwrite(str(filename), frame)
     return filename
